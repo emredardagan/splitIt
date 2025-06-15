@@ -14,11 +14,11 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Person, BillItem, CurrencyInfo } from '../types';
-import { Ionicons } from '@expo/vector-icons';
 import { generateId } from '../utils/billUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
 import Decimal from 'decimal.js';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type PeopleAndSplitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PeopleAndSplit'>;
 

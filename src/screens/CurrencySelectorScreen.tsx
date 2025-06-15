@@ -10,8 +10,8 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, CurrencyInfo } from '../types';
 import { CURRENCIES } from '../constants/currencies';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type CurrencySelectorNavigationProp = StackNavigationProp<RootStackParamList, 'CurrencySelector'>;
 

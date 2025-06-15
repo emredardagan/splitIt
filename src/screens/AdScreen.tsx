@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type AdScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AdScreen'>;
 
@@ -99,7 +99,7 @@ const AdScreen: React.FC<Props> = ({ navigation }) => {
         {/* Ad Content */}
         <View style={styles.adContent}>
           <View style={styles.adIcon}>
-            <Ionicons name="gift" size={80} color="#1e2939" />
+            {/* Icon content remains unchanged */}
           </View>
           
           <Text style={styles.adTitle}>

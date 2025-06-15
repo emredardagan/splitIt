@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Person, BillItem, CurrencyInfo } from '../types';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
 import { calculateSplitAmounts, getTotal, formatCurrency } from '../utils/billUtils';
 import Decimal from 'decimal.js';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type SplitSummaryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'SplitSummary'>;
 

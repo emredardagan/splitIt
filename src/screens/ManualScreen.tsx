@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, BillItem, CurrencyInfo } from '../types';
-import { Ionicons } from '@expo/vector-icons';
 import { generateId } from '../utils/billUtils';
 import Decimal from 'decimal.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type ManualScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Manual'>;
 
