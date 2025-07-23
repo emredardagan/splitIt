@@ -4,11 +4,18 @@ buildscript {
   repositories {
     google()
     mavenCentral()
+    maven {
+      url("https://www.jitpack.io")
+    }
+    // Local react-native repository
+    maven {
+      url(new File(projectDir, "../node_modules/react-native/android"))
+    }
   }
   dependencies {
-    classpath('com.android.tools.build:gradle')
+    classpath('com.android.tools.build:gradle:8.8.2')
     classpath('com.facebook.react:react-native-gradle-plugin')
-    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21')
   }
 }
 
@@ -31,6 +38,13 @@ allprojects {
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
   }
+}
+
+ext {
+    buildToolsVersion = findProperty('ANDROID_BUILD_TOOLS_VERSION') ?: "35.0.0"
+    minSdkVersion = Integer.valueOf(findProperty('ANDROID_MIN_SDK_VERSION') ?: "24")
+    compileSdkVersion = Integer.valueOf(findProperty('ANDROID_COMPILE_SDK_VERSION') ?: "35")
+    targetSdkVersion = Integer.valueOf(findProperty('ANDROID_TARGET_SDK_VERSION') ?: "35")
 }
 
 apply plugin: "com.facebook.react.rootproject"
