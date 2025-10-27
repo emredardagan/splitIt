@@ -1,12 +1,24 @@
 import React from 'react';
-import { StatusBar } from 'react-native';
-import AppNavigator from './src/navigation/AppNavigator';
+import { View, Text, StyleSheet } from 'react-native';
 
 export default function App() {
   return (
-    <>
-      <AppNavigator />
-      <StatusBar barStyle="dark-content" />
-    </>
+    <View style={styles.container}>
+      <Text style={styles.text}>SplitIt App is Working!</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f4eeec',
+  },
+  text: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1e2939',
+  },
+});
