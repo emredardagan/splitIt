@@ -1,24 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StatusBar } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AppNavigator from './src/navigation/AppNavigator';
+import { Colors } from './src/theme/colors';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>SplitIt App is Working!</Text>
-    </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+        <AppNavigator />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f4eeec',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e2939',
-  },
-});

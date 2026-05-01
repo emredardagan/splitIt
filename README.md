@@ -1,4 +1,4 @@
-# SplitIt - Bill Splitting Mobile App
+# Ortak Hesap - Bill Splitting Mobile App
 
 A React Native mobile application for splitting bills easily and fairly among friends. Inspired by BillSplit with enhanced features including multi-currency support and ad integration.
 
@@ -35,8 +35,8 @@ A React Native mobile application for splitting bills easily and fairly among fr
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd SplitItApp
+   git clone <repository-url> ortakHesap
+   cd ortakHesap
    ```
 
 2. **Install dependencies**

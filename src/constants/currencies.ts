@@ -4,7 +4,7 @@ export const CURRENCIES: CurrencyInfo[] = [
   {
     code: 'USD',
     symbol: '$',
-    name: 'US Dollar'
+    name: 'ABD Doları'
   },
   {
     code: 'EUR',
@@ -14,8 +14,9 @@ export const CURRENCIES: CurrencyInfo[] = [
   {
     code: 'TL',
     symbol: '₺',
-    name: 'Turkish Lira'
+    name: 'Türk Lirası'
   }
 ];
 
-export const DEFAULT_CURRENCY: CurrencyInfo = CURRENCIES[0]; 
+export const DEFAULT_CURRENCY: CurrencyInfo =
+  CURRENCIES.find((c) => c.code === 'TL') ?? CURRENCIES[0]; 

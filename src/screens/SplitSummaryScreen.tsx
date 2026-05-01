@@ -4,51 +4,43 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  FlatList,
+  ScrollView,
   Share,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, Person, BillItem, CurrencyInfo } from '../types';
+import {
+  RootStackParamList,
+  BillForm,
+  BillItem,
+  Person,
+  CurrencyInfo,
+} from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
-import { calculateSplitAmounts, getTotal, formatCurrency } from '../utils/billUtils';
+import {
+  calculateSplitAmounts,
+  getTotal,
+  formatCurrency,
+} from '../utils/billUtils';
 import Decimal from 'decimal.js';
-import ConfettiCannon from 'react-native-confetti-cannon';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { Colors } from '../theme/colors';
 
-type SplitSummaryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'SplitSummary'>;
+type NavProp = StackNavigationProp<RootStackParamList, 'SplitSummary'>;
 
 interface Props {
-  navigation: SplitSummaryScreenNavigationProp;
-}
-
-interface BillFormData {
-  billItems: BillItem[];
-  people: Person[];
-  tax: Decimal;
-  tip: Decimal;
-  splitEvenly: boolean;
-  currency: CurrencyInfo;
+  navigation: NavProp;
 }
 
 const SplitSummaryScreen: React.FC<Props> = ({ navigation }) => {
-  const [billData, setBillData] = useState<BillFormData | null>(null);
+  const insets = useSafeAreaInsets();
+  const [billData, setBillData] = useState<BillForm | null>(null);
   const [splitAmounts, setSplitAmounts] = useState<Decimal[]>([]);
-  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
-    loadBillData();
-  }, []);
-
-  useEffect(() => {
-    // Show confetti on first load
-    const timer = setTimeout(() => {
-      setShowConfetti(true);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    void loadBillData();
   }, []);
 
   const loadBillData = async () => {
@@ -69,21 +61,23 @@ const SplitSummaryScreen: React.FC<Props> = ({ navigation }) => {
         AsyncStorage.getItem('splitEvenly'),
       ]);
 
-      const items: BillItem[] = savedItems 
-        ? JSON.parse(savedItems).map((item: any) => ({
+      const parsedItems: BillItem[] = savedItems
+        ? JSON.parse(savedItems).map((item: Record<string, unknown>) => ({
             ...item,
-            price: new Decimal(item.price)
+            price: new Decimal(String(item.price ?? '0')),
           }))
         : [];
 
       const people: Person[] = savedPeople ? JSON.parse(savedPeople) : [];
-      const currency: CurrencyInfo = savedCurrency ? JSON.parse(savedCurrency) : DEFAULT_CURRENCY;
+      const currency: CurrencyInfo = savedCurrency
+        ? JSON.parse(savedCurrency)
+        : DEFAULT_CURRENCY;
       const tax = new Decimal(savedTax || '0');
       const tip = new Decimal(savedTip || '0');
       const splitEvenly = savedSplitEvenly ? JSON.parse(savedSplitEvenly) : true;
 
-      const formData: BillFormData = {
-        billItems: items,
+      const formData: BillForm = {
+        billItems: parsedItems,
         people,
         tax,
         tip,
@@ -92,320 +86,250 @@ const SplitSummaryScreen: React.FC<Props> = ({ navigation }) => {
       };
 
       setBillData(formData);
-      
       if (people.length > 0) {
-        const amounts = calculateSplitAmounts(formData);
-        setSplitAmounts(amounts);
+        setSplitAmounts(calculateSplitAmounts(formData));
       }
     } catch (error) {
-      console.error('Error loading bill data:', error);
-      Alert.alert('Error', 'Failed to load bill data');
+      console.error(error);
+      Alert.alert('Hata', 'Veriler yüklenemedi');
     }
   };
 
   const shareResults = async () => {
-    if (!billData || splitAmounts.length === 0) return;
-
+    if (!billData || splitAmounts.length === 0) {
+      return;
+    }
     const total = getTotal(billData);
-    const formattedString = `
-🧾 Bill Split Summary
-
-${billData.people
-  .map((person, index) => {
-    const amount = splitAmounts[index] || new Decimal(0);
-    return `• ${person.name}: ${formatCurrency(amount, billData.currency.symbol)}`;
-  })
-  .join('\n')}
-
-💰 Total: ${formatCurrency(total, billData.currency.symbol)}
-
-Split with SplitIt App! 📱`;
+    const lines = billData.people
+      .map((person, index) => {
+        const amount = splitAmounts[index] || new Decimal(0);
+        return `• ${person.name}: ${formatCurrency(
+          amount,
+          billData.currency.symbol,
+        )}`;
+      })
+      .join('\n');
+    const formattedString = `Bölüştürme özeti\n\n${lines}\n\nToplam: ${formatCurrency(
+      total,
+      billData.currency.symbol,
+    )}\n\nOrtak Hesap ile paylaşıldı.`;
 
     try {
       await Share.share({
         message: formattedString,
-        title: 'Bill Split Summary',
+        title: 'Bölüştürme özeti',
       });
-    } catch (error) {
-      console.error('Error sharing:', error);
+    } catch (_e) {
+      /* noop */
     }
   };
 
   const startNewSplit = async () => {
     try {
-      // Clear all saved data
-      await Promise.all([
-        AsyncStorage.removeItem('billItems'),
-        AsyncStorage.removeItem('people'),
-        AsyncStorage.removeItem('tax'),
-        AsyncStorage.removeItem('tip'),
-        AsyncStorage.removeItem('splitEvenly'),
+      await AsyncStorage.multiRemove([
+        'billItems',
+        'people',
+        'tax',
+        'tip',
+        'splitEvenly',
+        'receiptRestaurant',
+        'receiptDateDisplay',
       ]);
-      
       navigation.navigate('Home');
-    } catch (error) {
-      console.error('Error clearing data:', error);
+    } catch (_e) {
+      /* noop */
     }
-  };
-
-  const renderPersonSplit = ({ item, index }: { item: Person; index: number }) => {
-    const amount = splitAmounts[index] || new Decimal(0);
-    
-    return (
-      <View style={styles.personCard}>
-        <View style={styles.personInfo}>
-          <View style={styles.personAvatar}>
-            <Text style={styles.personInitial}>
-              {item.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <Text style={styles.personName}>{item.name}</Text>
-        </View>
-        <View style={styles.amountContainer}>
-          <Text style={styles.currencySymbol}>
-            {billData?.currency.symbol}
-          </Text>
-          <Text style={styles.amount}>
-            {amount.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-    );
   };
 
   if (!billData) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={[styles.shell, { paddingTop: insets.top }]}>
+        <Text style={styles.loadingTxt}>Yükleniyor…</Text>
+      </View>
     );
   }
 
   const total = getTotal(billData);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {showConfetti && (
-        <ConfettiCannon
-          count={200}
-          origin={{ x: -10, y: 0 }}
-          autoStart={true}
-          fadeOut={true}
-        />
-      )}
-      
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={60} color="#22c55e" />
-          </View>
-          <Text style={styles.title}>Split Complete! 🎉</Text>
-          <Text style={styles.subtitle}>Here's how everyone should pay:</Text>
+    <View style={[styles.shell, { paddingTop: insets.top }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollInner}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          style={styles.backGhost}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <FontAwesome6 name="chevron-left" size={22} color={Colors.text} solid />
+          <Text style={styles.backGhostTxt}>Geri</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.title}>Bölüştürme Özeti</Text>
+        <Text style={styles.subtitle}>
+          Faturayı şu şekilde bölüştürmelisiniz:
+        </Text>
+
+        <View style={{ marginTop: 8 }}>
+          {billData.people.map((person, index) => {
+            const amount = splitAmounts[index] || new Decimal(0);
+            return (
+              <View key={person.id} style={styles.sumCard}>
+                <Text style={styles.nameCell}>{person.name}</Text>
+                <View style={styles.amtCell}>
+                  <Text style={styles.curSmall}>{billData.currency.symbol}</Text>
+                  <Text style={styles.amtBold}>{amount.toFixed(2)}</Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
-        <View style={styles.summarySection}>
-          <FlatList
-            data={billData.people}
-            renderItem={renderPersonSplit}
-            keyExtractor={(item) => item.id}
-            style={styles.splitList}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
+        <Text style={styles.totalNote}>
+          Toplam:{' '}
+          <Text style={styles.totalMut}>
+            {billData.currency.symbol} {total.toFixed(2)}
+          </Text>
+        </Text>
 
-        <View style={styles.totalSection}>
-          <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>Total Bill</Text>
-            <Text style={styles.totalAmount}>
-              {formatCurrency(total, billData.currency.symbol)}
-            </Text>
-          </View>
-        </View>
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={() => void shareResults()}
+        >
+          <FontAwesome6 name="share-nodes" size={20} color={Colors.white} solid />
+          <Text style={styles.shareBtnTxt}>Paylaş</Text>
+        </TouchableOpacity>
 
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={shareResults}
-          >
-            <Ionicons name="share" size={20} color="#1e2939" />
-            <Text style={styles.shareButtonText}>Share Results</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.homeBtn}
+          onPress={() => void startNewSplit()}
+        >
+          <FontAwesome6 name="house" size={20} color={Colors.text} />
+          <Text style={styles.homeBtnTxt}>Ana Sayfaya Dön</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.newSplitButton}
-            onPress={startNewSplit}
-          >
-            <Ionicons name="add" size={20} color="white" />
-            <Text style={styles.newSplitButtonText}>New Split</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+        <View style={{ height: insets.bottom }} />
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  shell: {
     flex: 1,
-    backgroundColor: '#f4eeec',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: '#6a7282',
-  },
-  content: {
-    flex: 1,
+    backgroundColor: Colors.background,
     paddingHorizontal: 20,
   },
-  header: {
-    alignItems: 'center',
-    paddingTop: 20,
-    marginBottom: 30,
+  loadingTxt: {
+    marginTop: 40,
+    textAlign: 'center',
+    color: Colors.textMuted,
+    fontSize: 16,
   },
-  successIcon: {
-    marginBottom: 16,
+  scroll: { flex: 1 },
+  scrollInner: { paddingBottom: 24 },
+  backGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  backGhostTxt: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+    marginLeft: -4,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1e2939',
-    textAlign: 'center',
+    color: Colors.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#4a5565',
-    textAlign: 'center',
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 16,
   },
-  summarySection: {
-    flex: 1,
-    marginBottom: 20,
-  },
-  splitList: {
-    flex: 1,
-  },
-  personCard: {
-    backgroundColor: 'white',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    marginBottom: 12,
+  sumCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#EEE9E4',
   },
-  personInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  personAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1e2939',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  personInitial: {
-    color: 'white',
+  nameCell: {
     fontSize: 16,
     fontWeight: '600',
+    color: Colors.text,
+    flex: 1,
   },
-  personName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e2939',
-  },
-  amountContainer: {
+  amtCell: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
-  currencySymbol: {
-    fontSize: 16,
-    color: '#6a7282',
-    marginRight: 2,
+  curSmall: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    marginRight: 4,
   },
-  amount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1e2939',
+  amtBold: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: Colors.text,
   },
-  totalSection: {
+  totalNote: {
+    marginTop: 12,
     marginBottom: 24,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'right',
   },
-  totalCard: {
-    backgroundColor: '#1e2939',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
-  },
-  totalAmount: {
-    fontSize: 32,
+  totalMut: {
     fontWeight: '700',
-    color: 'white',
+    color: Colors.text,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  shareButton: {
-    flex: 1,
-    backgroundColor: 'white',
+  shareBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
     paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    marginBottom: 12,
+  },
+  shareBtnTxt: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 17,
+  },
+  homeBtn: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
+    marginBottom: 8,
   },
-  shareButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e2939',
-  },
-  newSplitButton: {
-    flex: 1,
-    backgroundColor: '#1e2939',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  newSplitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+  homeBtnTxt: {
+    color: Colors.text,
+    fontWeight: '700',
+    fontSize: 17,
   },
 });
 
-export default SplitSummaryScreen; 
+export default SplitSummaryScreen;

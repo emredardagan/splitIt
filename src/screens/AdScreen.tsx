@@ -4,45 +4,42 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   Dimensions,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { Colors } from '../theme/colors';
 
-type AdScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AdScreen'>;
+type AdNav = StackNavigationProp<RootStackParamList, 'AdScreen'>;
 
 interface Props {
-  navigation: AdScreenNavigationProp;
+  navigation: AdNav;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const AdScreen: React.FC<Props> = ({ navigation }) => {
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
   const fadeAnim = new Animated.Value(0);
-  const scaleAnim = new Animated.Value(0.8);
+  const scaleAnim = new Animated.Value(0.85);
 
   useEffect(() => {
-    // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 500,
+        duration: 550,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        tension: 50,
         friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Start countdown
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -54,14 +51,13 @@ const AdScreen: React.FC<Props> = ({ navigation }) => {
       });
     }, 1000);
 
-    // Auto navigate after 5 seconds
-    const autoNavigate = setTimeout(() => {
+    const nav = setTimeout(() => {
       navigation.replace('SplitSummary');
     }, 5000);
 
     return () => {
       clearInterval(timer);
-      clearTimeout(autoNavigate);
+      clearTimeout(nav);
     };
   }, []);
 
@@ -72,233 +68,170 @@ const AdScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Animated.View 
+    <View style={[styles.container, { width }]}>
+      <Animated.View
         style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
+          styles.box,
+          { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
         ]}
       >
-        {/* Skip Button */}
         <TouchableOpacity
-          style={[
-            styles.skipButton,
-            !canSkip && styles.skipButtonDisabled
-          ]}
+          style={[styles.skipBtn, !canSkip && styles.skipMuted]}
           onPress={skipAd}
           disabled={!canSkip}
         >
-          <Text style={styles.skipButtonText}>
-            {canSkip ? 'Skip Ad' : `Skip in ${countdown}s`}
+          <Text style={styles.skipTxt}>
+            {canSkip ? 'Atlayın' : `${countdown} sn sonra atlayabilirsiniz`}
           </Text>
         </TouchableOpacity>
 
-        {/* Ad Content */}
-        <View style={styles.adContent}>
-          <View style={styles.adIcon}>
-            {/* Icon content remains unchanged */}
-          </View>
-          
-          <Text style={styles.adTitle}>
-            🎉 Special Offer! 🎉
-          </Text>
-          
-          <Text style={styles.adSubtitle}>
-            Get Premium Features
-          </Text>
-          
-          <View style={styles.featuresList}>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-              <Text style={styles.featureText}>Unlimited bill splits</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-              <Text style={styles.featureText}>Advanced receipt scanning</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-              <Text style={styles.featureText}>Export to PDF</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-              <Text style={styles.featureText}>No ads</Text>
-            </View>
+        <View style={styles.card}>
+          <FontAwesome6 name="wand-magic-sparkles" size={40} color={Colors.primary} solid />
+          <Text style={styles.title}>Ortak Hesap ile tam deneyime geç</Text>
+          <Text style={styles.lead}>Yakında daha fazlası</Text>
+
+          <View style={styles.bullets}>
+            <Bullet text="Akıllı fiş çıkarma" />
+            <Bullet text="Tam geçmiş" />
           </View>
 
-          <View style={styles.priceSection}>
-            <Text style={styles.originalPrice}>$9.99/month</Text>
-            <Text style={styles.discountPrice}>$4.99/month</Text>
-            <Text style={styles.discountBadge}>50% OFF</Text>
-          </View>
-
-          <TouchableOpacity style={styles.ctaButton}>
-            <Text style={styles.ctaButtonText}>Get Premium Now</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" />
+          <TouchableOpacity activeOpacity={0.9}>
+            <View style={styles.ctaGhost}>
+              <Text style={styles.ctaGhostTxt}>Yakında</Text>
+              <FontAwesome6 name="arrow-right" size={18} color={Colors.white} solid />
+            </View>
           </TouchableOpacity>
-
-          <Text style={styles.disclaimer}>
-            Limited time offer • Cancel anytime
+          <Text style={styles.foot}>
+            Geçiş ekranı — hesap özeti bir sonraki adımda
           </Text>
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <Animated.View 
-              style={[
-                styles.progressFill,
-                {
-                  width: `${((5 - countdown) / 5) * 100}%`,
-                },
-              ]}
-            />
-          </View>
+        <View style={styles.barBg}>
+          <View
+            style={[
+              styles.barFill,
+              { width: `${((5 - Math.max(countdown, 0)) / 5) * 100}%` },
+            ]}
+          />
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
+
+const Bullet = ({ text }: { text: string }) => (
+  <View style={styles.bulletRow}>
+    <FontAwesome6 name="circle-check" size={18} color={Colors.primary} solid />
+    <Text style={styles.bulletTxt}>{text}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4eeec',
-  },
-  content: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 20,
+    backgroundColor: Colors.backgroundAlt,
+    justifyContent: 'center',
   },
-  skipButton: {
+  box: {
+    flex: 1,
+  },
+  skipBtn: {
     alignSelf: 'flex-end',
-    backgroundColor: 'rgba(30, 41, 57, 0.1)',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    marginBottom: 20,
+    backgroundColor: 'rgba(30,41,57,0.08)',
+    marginBottom: 16,
   },
-  skipButtonDisabled: {
-    backgroundColor: 'rgba(156, 163, 175, 0.3)',
+  skipMuted: {
+    opacity: 0.5,
   },
-  skipButtonText: {
-    fontSize: 14,
-    color: '#1e2939',
-    fontWeight: '500',
-  },
-  adContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 30,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  adIcon: {
-    marginBottom: 20,
-  },
-  adTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1e2939',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  adSubtitle: {
-    fontSize: 20,
+  skipTxt: {
+    fontSize: 13,
+    color: Colors.text,
     fontWeight: '600',
-    color: '#4a5565',
-    textAlign: 'center',
-    marginBottom: 30,
   },
-  featuresList: {
-    width: '100%',
-    marginBottom: 30,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 10,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#1e2939',
-    marginLeft: 12,
+  card: {
     flex: 1,
-  },
-  priceSection: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#EEE9E4',
+    gap: 12,
   },
-  originalPrice: {
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  lead: {
     fontSize: 16,
-    color: '#9ca3af',
-    textDecorationLine: 'line-through',
-    marginBottom: 4,
-  },
-  discountPrice: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1e2939',
+    color: Colors.textSecondary,
     marginBottom: 8,
+    textAlign: 'center',
   },
-  discountBadge: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  bullets: {
+    alignSelf: 'stretch',
+    marginVertical: 12,
+    gap: 10,
   },
-  ctaButton: {
-    backgroundColor: '#1e2939',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+  bulletRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
-    minWidth: 200,
+    paddingHorizontal: 4,
+  },
+  bulletTxt: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  ctaGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.text,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 8,
+    minWidth: 200,
+    opacity: 0.35,
   },
-  ctaButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+  ctaGhostTxt: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 16,
   },
-  disclaimer: {
+  foot: {
     fontSize: 12,
-    color: '#6a7282',
+    color: Colors.textMuted,
+    marginTop: 12,
     textAlign: 'center',
   },
-  progressContainer: {
-    marginTop: 20,
-  },
-  progressBar: {
+  barBg: {
     height: 4,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#E5DFDB',
     borderRadius: 2,
     overflow: 'hidden',
+    marginTop: 22,
   },
-  progressFill: {
+  barFill: {
     height: '100%',
-    backgroundColor: '#1e2939',
+    backgroundColor: Colors.primary,
     borderRadius: 2,
   },
 });
 
-export default AdScreen; 
+export default AdScreen;

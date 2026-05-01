@@ -83,9 +83,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.splititapp.billsplitter"
+    namespace "com.ortakhesap.billsplitter"
     defaultConfig {
-        applicationId "com.splititapp.billsplitter"
+        applicationId "com.ortakhesap.billsplitter"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -142,6 +142,15 @@ android {
         }
     }
 }
+
+project.ext.vectoricons = [
+    iconFontNames: [
+        'FontAwesome6_Brands.ttf',
+        'FontAwesome6_Regular.ttf',
+        'FontAwesome6_Solid.ttf',
+    ],
+]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin

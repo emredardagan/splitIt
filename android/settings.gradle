@@ -1,4 +1,4 @@
-rootProject.name = 'SplitItApp'
+rootProject.name = 'ortakHesap'
 
 includeBuild('../node_modules/@react-native/gradle-plugin')
 

@@ -1,0 +1,16 @@
+export const Colors = {
+  background: '#F7F3F0',
+  backgroundAlt: '#F5F1ED',
+  text: '#1D2939',
+  textSecondary: '#4A5568',
+  textMuted: '#6B7280',
+  primary: '#389BA6',
+  primaryPressed: '#2E7F8C',
+  salmon: '#E5A48B',
+  salmonMuted: '#E5A086',
+  brown: '#5D2906',
+  brownIcon: '#6B4423',
+  border: '#E5E7EB',
+  white: '#FFFFFF',
+  shadow: '#000',
+} as const;

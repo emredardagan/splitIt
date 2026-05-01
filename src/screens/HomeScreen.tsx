@@ -4,12 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { Colors } from '../theme/colors';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -18,135 +19,146 @@ interface Props {
 }
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#1e2939" />
-          </View>
-          
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>Scan. Tap. Split.</Text>
-            <Text style={styles.subtitle}>
-              Snap the receipt, tap your items, see who owes what. No sign-ups, no math, no drama.
-            </Text>
-          </View>
-        </View>
+  const insets = useSafeAreaInsets();
 
-        <View style={styles.buttonContainer}>
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.flex}>
+        <View style={styles.hero}>
+          <Image
+            source={require('../../assets/home-hero.png')}
+            style={styles.heroIcon}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="Ortak Hesap uygulama simgesi"
+          />
+          <Text style={styles.title}>Tara. Dokun. Bölüş.</Text>
+          <Text style={styles.subtitle}>
+            Fişin fotoğrafını çekin, ürünlerinize dokunun, kimin ne kadar borcu
+            olduğunu görün. Kayıt yok, hesap kitap yok, dert yok.
+          </Text>
+        </View>
+        <View style={styles.spacer} />
+        <View style={styles.buttonBlock}>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => navigation.navigate('Camera')}
+            activeOpacity={0.92}
           >
-            <Ionicons name="camera" size={20} color="white" />
-            <Text style={styles.primaryButtonText}>Scan Receipt</Text>
+            <FontAwesome6 name="camera" size={20} color={Colors.white} solid />
+            <Text style={styles.primaryButtonText}>Fişi Tara</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => navigation.navigate('Manual')}
+            activeOpacity={0.92}
           >
-            <Text style={styles.secondaryButtonText}>Enter Manually</Text>
+            <Text style={styles.secondaryButtonText}>Manuel Giriş Yap</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
-            style={styles.currencyButton}
+            style={styles.tertiaryLink}
             onPress={() => navigation.navigate('CurrencySelector')}
           >
-            <Ionicons name="globe-outline" size={20} color="#364153" />
-            <Text style={styles.currencyButtonText}>Select Currency</Text>
+            <FontAwesome6 name="coins" size={18} color={Colors.textSecondary} solid />
+            <Text style={styles.tertiaryLinkText}>Para birimi seç</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4eeec',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: Colors.background,
     paddingHorizontal: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 60,
+  flex: {
+    flex: 1,
   },
-  logoContainer: {
-    marginBottom: 32,
-  },
-  titleContainer: {
+  hero: {
     alignItems: 'center',
+    paddingTop: 28,
+  },
+  heroIcon: {
+    width: 128,
+    height: 128,
+  },
+  spacer: {
+    flex: 1,
+    minHeight: 16,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '600',
-    color: '#1e2939',
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.text,
+    marginTop: 28,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#4a5565',
+    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 300,
+    lineHeight: 24,
+    maxWidth: 320,
+    marginTop: 12,
+    paddingHorizontal: 4,
   },
-  buttonContainer: {
+  buttonBlock: {
     width: '100%',
-    maxWidth: 300,
-    gap: 12,
+    maxWidth: 320,
+    alignSelf: 'center',
+    paddingBottom: 8,
   },
   primaryButton: {
-    backgroundColor: '#1e2939',
+    backgroundColor: Colors.primary,
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginBottom: 12,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+    gap: 10,
   },
   primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.white,
+    fontSize: 17,
+    fontWeight: '700',
   },
   secondaryButton: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
   secondaryButtonText: {
-    color: '#364153',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: '700',
   },
-  currencyButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  tertiaryLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
     gap: 8,
   },
-  currencyButtonText: {
-    color: '#364153',
+  tertiaryLinkText: {
     fontSize: 14,
-    fontWeight: '500',
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
 });
 
-export default HomeScreen; 
+export default HomeScreen;

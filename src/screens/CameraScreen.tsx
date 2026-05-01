@@ -1,242 +1,155 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import { Ionicons } from '@expo/vector-icons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { BackLink } from '../components/ScreenChrome';
+import { Colors } from '../theme/colors';
 
-type CameraScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Camera'>;
+type Nav = StackNavigationProp<RootStackParamList, 'Camera'>;
 
 interface Props {
-  navigation: CameraScreenNavigationProp;
+  navigation: Nav;
 }
 
 const CameraScreen: React.FC<Props> = ({ navigation }) => {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
-  const cameraRef = useRef<CameraView>(null);
+  const insets = useSafeAreaInsets();
 
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-        });
-        
-        // For now, just navigate to manual entry
-        // In a real app, you would process the image here
-        Alert.alert(
-          'Photo Captured',
-          'Receipt scanning will be processed. For now, please enter items manually.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Manual'),
-            },
-          ]
-        );
-      } catch (error) {
-        console.error('Error taking picture:', error);
-        Alert.alert('Error', 'Failed to take picture');
-      }
-    }
+  const goProcess = () => {
+    navigation.navigate('ReceiptItems');
   };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      // For now, just navigate to manual entry
-      // In a real app, you would process the image here
-      Alert.alert(
-        'Image Selected',
-        'Receipt scanning will be processed. For now, please enter items manually.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Manual'),
-          },
-        ]
-      );
-    }
-  };
-
-  if (!permission) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text>Requesting camera permission...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Ionicons name="close-circle" size={64} color="#6a7282" />
-          <Text style={styles.noPermissionText}>No access to camera</Text>
-          <TouchableOpacity
-            style={styles.galleryButton}
-            onPress={pickImage}
-          >
-            <Ionicons name="images" size={20} color="white" />
-            <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        <View style={styles.overlay}>
-          <View style={styles.topControls}>
-            <TouchableOpacity
-              style={styles.flipButton}
-              onPress={() => {
-                setFacing(current => (current === 'back' ? 'front' : 'back'));
-              }}
-            >
-              <Ionicons name="camera-reverse" size={24} color="white" />
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <View style={styles.inner}>
+        <BackLink onPress={() => navigation.goBack()} />
+        <Text style={styles.title}>Fişi Tara</Text>
+        <Text style={styles.subtitle}>
+          Fişinizin fotoğrafını çekin veya bir görsel yükleyin
+        </Text>
+
+        <View style={styles.card}>
+          <View style={styles.dashed}>
+            <View style={styles.camWrap}>
+              <FontAwesome6 name="camera" size={56} color={Colors.brownIcon} solid />
+              <FontAwesome6
+                name="wand-magic-sparkles"
+                size={18}
+                color={Colors.primary}
+                style={styles.sparkleL}
+                solid
+              />
+              <FontAwesome6
+                name="wand-magic-sparkles"
+                size={14}
+                color={Colors.salmon}
+                style={styles.sparkleR}
+                solid
+              />
+            </View>
+            <Text style={styles.boldHint}>Fotoğraf çek</Text>
+            <TouchableOpacity onPress={goProcess} activeOpacity={0.7}>
+              <Text style={styles.link}>veya fiş yükle</Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.scanArea}>
-            <View style={styles.scanFrame} />
-            <Text style={styles.scanText}>Position receipt within frame</Text>
-          </View>
-
-          <View style={styles.bottomControls}>
-            <TouchableOpacity
-              style={styles.galleryButton}
-              onPress={pickImage}
-            >
-              <Ionicons name="images" size={24} color="white" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.captureButton}
-              onPress={takePicture}
-            >
-              <View style={styles.captureButtonInner} />
-            </TouchableOpacity>
-
-            <View style={styles.placeholder} />
           </View>
         </View>
-      </CameraView>
-    </SafeAreaView>
+
+        <View style={{ flex: 1, minHeight: 12 }} />
+
+        <TouchableOpacity style={styles.primary} onPress={goProcess}>
+          <Text style={styles.primaryTxt}>Fişi İşle</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: insets.bottom }} />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F9F4F1',
   },
-  centerContent: {
+  inner: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: 20,
   },
-  noPermissionText: {
-    fontSize: 18,
-    color: '#6a7282',
-    marginTop: 16,
-    marginBottom: 32,
-    textAlign: 'center',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
   },
-  camera: {
-    flex: 1,
+  subtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 24,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  topControls: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  flipButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 12,
-    borderRadius: 25,
-  },
-  scanArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  scanFrame: {
-    width: '100%',
-    height: 200,
+  dashed: {
     borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-  },
-  scanText: {
-    color: 'white',
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  bottomControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 40,
-  },
-  galleryButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 12,
-    borderRadius: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  galleryButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'white',
-    justifyContent: 'center',
+    borderStyle: 'dashed',
+    borderColor: '#D1C9C2',
+    borderRadius: 14,
+    paddingVertical: 36,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#1e2939',
+  camWrap: {
+    position: 'relative',
+    marginBottom: 16,
   },
-  placeholder: {
-    width: 50,
+  sparkleL: {
+    position: 'absolute',
+    left: -8,
+    top: 4,
+  },
+  sparkleR: {
+    position: 'absolute',
+    right: -10,
+    bottom: 2,
+  },
+  boldHint: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  link: {
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  primary: {
+    backgroundColor: Colors.salmonMuted,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  primaryTxt: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 17,
   },
 });
 
-export default CameraScreen; 
+export default CameraScreen;

@@ -1,705 +1,445 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  FlatList,
+  ScrollView,
   TextInput,
   Alert,
-  Switch,
-  Modal,
-  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Person, BillItem, CurrencyInfo } from '../types';
 import { generateId } from '../utils/billUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
 import Decimal from 'decimal.js';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { BackLink } from '../components/ScreenChrome';
+import { Colors } from '../theme/colors';
 
-type PeopleAndSplitScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PeopleAndSplit'>;
+type NavProp = StackNavigationProp<RootStackParamList, 'PeopleAndSplit'>;
 
 interface Props {
-  navigation: PeopleAndSplitScreenNavigationProp;
+  navigation: NavProp;
 }
 
 const PeopleAndSplitScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [people, setPeople] = useState<Person[]>([]);
-  const [personName, setPersonName] = useState('');
-  const [splitEvenly, setSplitEvenly] = useState(true);
   const [items, setItems] = useState<BillItem[]>([]);
   const [currency, setCurrency] = useState<CurrencyInfo>(DEFAULT_CURRENCY);
-  const [selectedItem, setSelectedItem] = useState<BillItem | null>(null);
-  const [showPersonSelector, setShowPersonSelector] = useState(false);
+  const [splitEvenly, setSplitEvenly] = useState(false);
 
-  useEffect(() => {
-    loadData();
+  const savePeopleStorage = async (next: Person[]) => {
+    await AsyncStorage.setItem('people', JSON.stringify(next));
+    setPeople(next);
+  };
+
+  const saveItemsStorage = useCallback(async (next: BillItem[]) => {
+    const forStorage = next.map((item) => ({
+      ...item,
+      price: item.price.toString(),
+    }));
+    await AsyncStorage.setItem('billItems', JSON.stringify(forStorage));
+    setItems(next);
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [savedPeople, savedItems, savedCurrency] = await Promise.all([
-        AsyncStorage.getItem('people'),
-        AsyncStorage.getItem('billItems'),
-        AsyncStorage.getItem('selectedCurrency'),
-      ]);
-
-      if (savedPeople) {
-        setPeople(JSON.parse(savedPeople));
+  useEffect(() => {
+    const boot = async () => {
+      try {
+        const [savedPeople, savedItems, savedCurrency] = await Promise.all([
+          AsyncStorage.getItem('people'),
+          AsyncStorage.getItem('billItems'),
+          AsyncStorage.getItem('selectedCurrency'),
+        ]);
+        if (savedPeople) {
+          setPeople(JSON.parse(savedPeople));
+        }
+        if (savedItems) {
+          const parsed = JSON.parse(savedItems) as Record<string, unknown>[];
+          setItems(
+            parsed.map((row) => ({
+              id: String(row.id),
+              name: String(row.name ?? ''),
+              price: new Decimal(String(row.price ?? '0')),
+              assignedTo: Array.isArray(row.assignedTo)
+                ? (row.assignedTo as string[])
+                : [],
+            })),
+          );
+        }
+        if (savedCurrency) {
+          setCurrency(JSON.parse(savedCurrency));
+        }
+      } catch (e) {
+        console.warn(e);
       }
-
-      if (savedItems) {
-        const itemsData = JSON.parse(savedItems);
-        const itemsWithDecimal = itemsData.map((item: any) => ({
-          ...item,
-          price: new Decimal(item.price)
-        }));
-        setItems(itemsWithDecimal);
-      }
-
-      if (savedCurrency) {
-        setCurrency(JSON.parse(savedCurrency));
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  };
-
-  const savePeople = async (newPeople: Person[]) => {
-    try {
-      await AsyncStorage.setItem('people', JSON.stringify(newPeople));
-    } catch (error) {
-      console.error('Error saving people:', error);
-    }
-  };
-
-
-
-  const saveItems = async (newItems: BillItem[]) => {
-    try {
-      const itemsForStorage = newItems.map(item => ({
-        ...item,
-        price: item.price.toString()
-      }));
-      await AsyncStorage.setItem('billItems', JSON.stringify(itemsForStorage));
-    } catch (error) {
-      console.error('Error saving items:', error);
-    }
-  };
-
-  const openPersonSelector = (item: BillItem) => {
-    setSelectedItem(item);
-    setShowPersonSelector(true);
-  };
-
-  const togglePersonAssignment = (personId: string) => {
-    if (!selectedItem) return;
-
-    const updatedItems = items.map(item => {
-      if (item.id === selectedItem.id) {
-        const assignedTo = item.assignedTo.includes(personId)
-          ? item.assignedTo.filter(id => id !== personId)
-          : [...item.assignedTo, personId];
-        return { ...item, assignedTo };
-      }
-      return item;
-    });
-
-    setItems(updatedItems);
-    saveItems(updatedItems);
-    
-    const updatedSelectedItem = updatedItems.find(item => item.id === selectedItem.id);
-    if (updatedSelectedItem) {
-      setSelectedItem(updatedSelectedItem);
-    }
-  };
-
-  const getAssignedPeopleNames = (assignedTo: string[]) => {
-    return assignedTo
-      .map(id => people.find(person => person.id === id)?.name)
-      .filter(Boolean)
-      .join(', ');
-  };
-
-  const addPerson = () => {
-    if (!personName.trim()) {
-      Alert.alert('Error', 'Please enter person name');
-      return;
-    }
-
-    const newPerson: Person = {
-      id: generateId(),
-      name: personName.trim(),
     };
+    void boot();
+  }, []);
 
-    const newPeople = [...people, newPerson];
-    setPeople(newPeople);
-    savePeople(newPeople);
-    setPersonName('');
+  const addEmptyPersonRow = async () => {
+    const next: Person[] = [...people, { id: generateId(), name: '' }];
+    await savePeopleStorage(next);
   };
 
-  const removePerson = (id: string) => {
-    const newPeople = people.filter(person => person.id !== id);
-    setPeople(newPeople);
-    savePeople(newPeople);
+  const updatePersonLabel = async (id: string, name: string) => {
+    const next = people.map((p) => (p.id === id ? { ...p, name } : p));
+    await savePeopleStorage(next);
   };
 
-  const proceedToNext = async () => {
-    if (people.length === 0) {
-      Alert.alert('Hata', 'Lütfen en az bir kişi ekleyin');
+  const removePersonRow = async (id: string) => {
+    const filtered = people.filter((p) => p.id !== id);
+    const clearedItems = items.map((item) => ({
+      ...item,
+      assignedTo: item.assignedTo.filter((aid) => aid !== id),
+    }));
+    await savePeopleStorage(filtered);
+    await saveItemsStorage(clearedItems);
+  };
+
+  const toggleEvenSplit = () => {
+    setSplitEvenly((prev) => !prev);
+  };
+
+  const toggleAssign = async (billId: string, personId: string) => {
+    setSplitEvenly(false);
+    const next = items.map((item) => {
+      if (item.id !== billId) {
+        return item;
+      }
+      const has = item.assignedTo.includes(personId);
+      return {
+        ...item,
+        assignedTo: has
+          ? item.assignedTo.filter((id) => id !== personId)
+          : [...item.assignedTo, personId],
+      };
+    });
+    await saveItemsStorage(next);
+  };
+
+  const namedPeople = people.filter((p) => p.name.trim().length > 0);
+
+  const navigateToNext = async () => {
+    try {
+      await AsyncStorage.setItem('splitEvenly', JSON.stringify(splitEvenly));
+      navigation.navigate('AdScreen');
+    } catch (_e) {
+      /* noop */
+    }
+  };
+
+  const proceedToNext = () => {
+    if (namedPeople.length === 0) {
+      Alert.alert(
+        'Eksik bilgi',
+        'Devam etmek için en az bir kişinin adını yazın.',
+      );
       return;
     }
 
-    // Check item assignments if not splitting evenly
     if (!splitEvenly) {
-      const unassignedItems = items.filter(item => item.assignedTo.length === 0);
-      
-      if (unassignedItems.length > 0) {
+      const bad = items.filter((it) => it.assignedTo.length === 0);
+      if (bad.length > 0) {
         Alert.alert(
-          'Eksik Atama',
-          `Şu kalemler henüz kimseye atanmamış: ${unassignedItems.map(item => item.name).join(', ')}. Devam etmek istiyor musunuz?`,
-          [
-            { text: 'İptal', style: 'cancel' },
-            { text: 'Devam Et', onPress: () => navigateToNext() }
-          ]
+          'Eksik atama',
+          `Şu kalemler için kimse seçilmedi:\n${bad
+            .map((b) => b.name)
+            .join(', ')}\n\nDevam etmek için atama yapın veya “Eşit bölüştür”e dokunun.`,
         );
         return;
       }
     }
 
-    navigateToNext();
+    navigateToNext().catch(() => undefined);
   };
 
-  const navigateToNext = async () => {
-    try {
-      await AsyncStorage.setItem('splitEvenly', JSON.stringify(splitEvenly));
-      // Set default tax and tip to 0
-      await Promise.all([
-        AsyncStorage.setItem('tax', '0'),
-        AsyncStorage.setItem('tip', '0'),
-      ]);
-      navigation.navigate('AdScreen');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-    }
-  };
-
-
-
-    return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Kişiler ve Bölme</Text>
-          <Text style={styles.subtitle}>Kişileri ekleyin ve nasıl böleceğinizi seçin</Text>
-        </View>
+        <BackLink onPress={() => navigation.goBack()} />
 
-        <View style={styles.inputSection}>
-          <View style={styles.inputRow}>
+        <Text style={styles.title}>Kimler Paylaşıyor?</Text>
+        <Text style={styles.sub}>
+          İsimleri girin ve ürünleri paylaştırın
+        </Text>
+
+        {people.map((p) => (
+          <View key={p.id} style={styles.personRow}>
             <TextInput
-              style={styles.input}
+              style={styles.personInput}
               placeholder="Kişi adı"
-              value={personName}
-              onChangeText={setPersonName}
+              placeholderTextColor={Colors.textMuted}
+              value={p.name}
+              onChangeText={(t) => {
+                void updatePersonLabel(p.id, t);
+              }}
               returnKeyType="done"
-              onSubmitEditing={addPerson}
             />
-            <TouchableOpacity style={styles.addButton} onPress={addPerson}>
-              <Ionicons name="add" size={20} color="white" />
+            <TouchableOpacity
+              onPress={() => {
+                void removePersonRow(p.id);
+              }}
+              style={styles.trash}
+            >
+              <FontAwesome6 name="trash-can" size={20} color={Colors.primary} />
             </TouchableOpacity>
           </View>
-        </View>
+        ))}
 
-        <View style={styles.peopleSection}>
-          <Text style={styles.sectionTitle}>Kişiler ({people.length})</Text>
-          {people.length > 0 ? (
-            people.map((person) => (
-              <View key={person.id} style={styles.personCard}>
-                <View style={styles.personInfo}>
-                  <Ionicons name="person" size={20} color="#1e2939" />
-                  <Text style={styles.personName}>{person.name}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removePerson(person.id)}
+        <TouchableOpacity
+          style={styles.outlineWide}
+          onPress={() => {
+            void addEmptyPersonRow();
+          }}
+        >
+          <Text style={styles.outlineWideText}>+ Kişi Ekle</Text>
+        </TouchableOpacity>
+
+        {items.length > 0 ? (
+          <View style={{ marginTop: 28 }}>
+            <View style={styles.assignHead}>
+              <Text style={styles.assignTitle}>Ürünleri Ata</Text>
+              <TouchableOpacity
+                style={[styles.pillSmall, splitEvenly && styles.pillSmallOn]}
+                onPress={toggleEvenSplit}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: splitEvenly }}
+              >
+                <Text
+                  style={[styles.pillSmallTxt, splitEvenly && styles.pillSmallTxtOn]}
                 >
-                  <Ionicons name="trash" size={18} color="#dc3545" />
-                </TouchableOpacity>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={48} color="#9ca3af" />
-              <Text style={styles.emptyText}>Henüz kimse eklenmemiş</Text>
+                  Eşit bölüştür
+                </Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-        <View style={styles.settingsSection}>
-          <View style={styles.splitOption}>
-            <View style={styles.optionContent}>
-              <Text style={styles.optionLabel}>Eşit Olarak Böl</Text>
-              <Text style={styles.optionDescription}>
-                {splitEvenly 
-                  ? 'Tüm kalemler eşit olarak bölünecek' 
-                  : 'Her kalemi hangi kişilerin paylaşacağını seçebilirsiniz'
-                }
+            {splitEvenly ? (
+              <Text style={styles.hintEven}>
+                Toplam, belirtilen kişiler arasında eşit paylaşılacak.
               </Text>
-            </View>
-            <Switch
-              value={splitEvenly}
-              onValueChange={setSplitEvenly}
-              trackColor={{ false: '#e5e7eb', true: '#1e2939' }}
-              thumbColor={splitEvenly ? '#ffffff' : '#f4f3f4'}
-            />
-          </View>
-
-          {!splitEvenly && items.length > 0 && (
-            <View style={styles.itemAssignmentSection}>
-              <Text style={styles.sectionTitle}>Kalem Ataması</Text>
-              <Text style={styles.assignmentDescription}>
-                Her kalemi hangi kişilerin paylaşacağını seçin:
-              </Text>
-              {items.map((item) => (
-                <View key={item.id} style={styles.itemCard}>
-                  <View style={styles.itemHeader}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemPrice}>
-                      {currency.symbol}{item.price.toFixed(2)}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.assignmentInfo}>
-                    <Text style={styles.assignmentLabel}>
-                      Atanan Kişiler ({item.assignedTo.length}):
-                    </Text>
-                    <Text style={styles.assignedPeople}>
-                      {item.assignedTo.length > 0 
-                        ? getAssignedPeopleNames(item.assignedTo)
-                        : 'Henüz kimse atanmamış'
-                      }
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.assignButton}
-                    onPress={() => openPersonSelector(item)}
-                  >
-                    <Ionicons name="people" size={16} color="white" />
-                    <Text style={styles.assignButtonText}>Kişi Seç</Text>
-                  </TouchableOpacity>
+            ) : null}
+            {items.map((item) => (
+              <View key={item.id} style={styles.itemCard}>
+                <View style={styles.itemTop}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemPrice}>
+                    {currency.symbol}
+                    {item.price.toFixed(2)}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
+                {!splitEvenly && namedPeople.length > 0 ? (
+                  <View style={styles.tagRow}>
+                    {namedPeople.map((person) => {
+                      const on = item.assignedTo.includes(person.id);
+                      return (
+                        <TouchableOpacity
+                          key={person.id}
+                          style={[styles.tag, on && styles.tagOn]}
+                          onPress={() => {
+                            void toggleAssign(item.id, person.id);
+                          }}
+                        >
+                          <Text style={[styles.tagTxt, on && styles.tagTxtOn]}>
+                            {person.name.trim() || '?'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[
-            styles.continueButton,
-            people.length === 0 && styles.continueButtonDisabled
+            styles.continueBtn,
+            namedPeople.length === 0 && styles.continueOff,
           ]}
-          onPress={proceedToNext}
-          disabled={people.length === 0}
+          onPress={() => proceedToNext()}
+          disabled={namedPeople.length === 0}
         >
-          <Text style={styles.continueButtonText}>Devam Et</Text>
-          <Ionicons name="arrow-forward" size={20} color="white" />
+          <Text style={styles.continueTxt}>Devam Et</Text>
         </TouchableOpacity>
+
+        <View style={{ height: insets.bottom }} />
       </ScrollView>
-
-      <Modal
-        visible={showPersonSelector}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPersonSelector(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedItem?.name} - Kişi Seçimi
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowPersonSelector(false)}
-              >
-                <Ionicons name="close" size={24} color="#1e2939" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalSubtitle}>
-              Bu kalemi paylaşacak kişileri seçin:
-            </Text>
-
-            <FlatList
-              data={people}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item: person }) => {
-                const isSelected = selectedItem?.assignedTo.includes(person.id) || false;
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.personOption,
-                      isSelected && styles.personOptionSelected
-                    ]}
-                    onPress={() => togglePersonAssignment(person.id)}
-                  >
-                    <View style={styles.personInfo}>
-                      <View style={[
-                        styles.personAvatar,
-                        isSelected && styles.personAvatarSelected
-                      ]}>
-                        <Text style={[
-                          styles.personInitial,
-                          isSelected && styles.personInitialSelected
-                        ]}>
-                          {person.name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={[
-                        styles.personName,
-                        isSelected && styles.personNameSelected
-                      ]}>
-                        {person.name}
-                      </Text>
-                    </View>
-                    <View style={[
-                      styles.checkbox,
-                      isSelected && styles.checkboxSelected
-                    ]}>
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={16} color="white" />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => setShowPersonSelector(false)}
-            >
-              <Text style={styles.doneButtonText}>Tamam</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#f4eeec',
+    backgroundColor: Colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  header: {
-    paddingTop: 20,
-    marginBottom: 24,
+    paddingBottom: 24,
   },
   title: {
     fontSize: 28,
-    fontWeight: '600',
-    color: '#1e2939',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#4a5565',
+  sub: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginBottom: 20,
+    lineHeight: 22,
   },
-  inputSection: {
-    marginBottom: 24,
-  },
-  inputRow: {
+  personRow: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
   },
-  input: {
+  personInput: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  addButton: {
-    backgroundColor: '#1e2939',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  peopleSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e2939',
-    marginBottom: 12,
-  },
-  personCard: {
-    backgroundColor: 'white',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  personInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  personName: {
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     fontSize: 16,
-    fontWeight: '500',
-    color: '#1e2939',
-    marginLeft: 12,
+    color: Colors.text,
   },
-  removeButton: {
-    padding: 8,
+  trash: {
+    padding: 10,
   },
-  emptyState: {
+  outlineWide: {
+    borderWidth: 1,
+    borderColor: '#CAC4BE',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 12,
-  },
-  settingsSection: {
-    marginBottom: 24,
-  },
-  splitOption: {
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  optionContent: {
-    flex: 1,
-    marginRight: 16,
-  },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1e2939',
     marginBottom: 4,
   },
-  optionDescription: {
-    fontSize: 14,
-    color: '#6a7282',
-    lineHeight: 18,
+  outlineWideText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
-  continueButton: {
-    backgroundColor: '#1e2939',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+  assignHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  continueButtonDisabled: {
-    backgroundColor: '#9ca3af',
+  assignTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
   },
-  continueButtonText: {
-    color: 'white',
-    fontSize: 16,
+  pillSmall: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  pillSmallTxt: {
+    fontSize: 13,
     fontWeight: '600',
+    color: Colors.primary,
   },
-  itemAssignmentSection: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginTop: 16,
+  pillSmallOn: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  assignmentDescription: {
-    fontSize: 14,
-    color: '#6a7282',
-    marginBottom: 16,
+  pillSmallTxtOn: {
+    color: Colors.white,
+  },
+  hintEven: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 14,
+    lineHeight: 18,
   },
   itemCard: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 10,
   },
-  itemHeader: {
+  itemTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e2939',
+    color: Colors.text,
     flex: 1,
+    marginRight: 10,
   },
   itemPrice: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#1e2939',
+    color: Colors.text,
   },
-  assignmentInfo: {
-    marginBottom: 8,
-  },
-  assignmentLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6a7282',
-    marginBottom: 2,
-  },
-  assignedPeople: {
-    fontSize: 14,
-    color: '#1e2939',
-    fontStyle: 'italic',
-  },
-  assignButton: {
-    backgroundColor: '#1e2939',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+  tagRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    marginHorizontal: -4,
+    marginBottom: -6,
   },
-  assignButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1e2939',
-    flex: 1,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#4a5565',
-    marginBottom: 20,
-  },
-  personOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: '#f8f9fa',
-  },
-  personOptionSelected: {
-    backgroundColor: '#e8f4fd',
+  tag: {
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#1e2939',
+    borderColor: Colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+    marginBottom: 6,
+    backgroundColor: Colors.white,
   },
-  personAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#9ca3af',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  tagOn: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  personAvatarSelected: {
-    backgroundColor: '#1e2939',
-  },
-  personInitial: {
-    color: 'white',
-    fontSize: 14,
+  tagTxt: {
+    fontSize: 13,
     fontWeight: '600',
+    color: Colors.textSecondary,
   },
-  personInitialSelected: {
-    color: 'white',
+  tagTxtOn: {
+    color: Colors.white,
   },
-  personNameSelected: {
-    color: '#1e2939',
-    fontWeight: '600',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: '#1e2939',
-    borderColor: '#1e2939',
-  },
-  doneButton: {
-    backgroundColor: '#1e2939',
+  continueBtn: {
+    marginTop: 28,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
   },
-  doneButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  continueOff: {
+    backgroundColor: '#A8CED3',
+  },
+  continueTxt: {
+    color: Colors.white,
+    fontSize: 17,
+    fontWeight: '700',
   },
 });
 
-export default PeopleAndSplitScreen; 
+export default PeopleAndSplitScreen;
